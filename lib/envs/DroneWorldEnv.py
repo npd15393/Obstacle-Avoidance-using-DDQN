@@ -11,11 +11,19 @@ SE=3
 RIGHT = 2
 DOWN =4 
 LEFT = 6
-action_reps={0:' ^ ',1:' NE ',2:' > ',3:' SE ',4:' v ',5:' SW ',6:' < ',7:' NW '}
+action_reps={0:' ^  ',1:' NE ',2:' >  ',3:' SE ',4:' v  ',5:' SW ',6:' <  ',7:' NW '}
 class DroneGridworldEnvmt(discrete.DiscreteEnv):
 
     metadata = {'render.modes': ['human', 'ansi']}
-
+    
+    def check_danger(self,coord):
+        t=((coord[0]<0) or (coord[0]>=self.shape[0]) or (coord[1]<0) or (coord[1]>=self.shape[1]))
+        return (t)
+    
+    def check_closecall(self,coord):
+        t=((coord[0]==0) or (coord[0]==self.shape[0]-1) or (coord[1]==0) or (coord[1]==self.shape[1]-1))
+        return (t)
+        
     def _limit_coordinates(self, coord):
         coord[0] = min(coord[0], self.shape[0] - 1)
         coord[0] = max(coord[0], 0)
@@ -24,7 +32,7 @@ class DroneGridworldEnvmt(discrete.DiscreteEnv):
         return coord
 
     def _calculate_transition_prob(self, current, delta, winds):
-        new_position = np.array(current) + np.array(delta) + np.array([-1, 0]) * winds[tuple(current)]
+        new_position = (np.array(current) + np.array(delta) + np.array([-1, 0]) * winds[tuple(current)]).astype(int)
         new_position = self._limit_coordinates(new_position).astype(int)
         new_state = np.ravel_multi_index(tuple(new_position), self.shape)
         is_done = tuple(new_position) == self.goalpt
@@ -34,6 +42,29 @@ class DroneGridworldEnvmt(discrete.DiscreteEnv):
             return [(1.0, current, -100.0, True)]
         else:
             return [(1.0, new_state, -1.0, is_done)]
+        
+        
+#        oc=self.check_danger(new_position)
+#        if not oc:
+#            new_state = np.ravel_multi_index(tuple(new_position), self.shape)
+#            if (new_state in self.sinks) :
+#                oc=True
+#               
+#        if oc:
+#            is_done=True
+#        else:
+#            is_done = (tuple(new_position) == self.goalpt)
+#        
+#        #Replace with RewardMap
+#        cc=self.check_closecall(new_position)
+#        
+#        if oc:
+#            return [(1.0, current, -100.0,is_done)]     
+#        elif cc:
+#            return [(1.0, new_state, -2.0,is_done )]
+#        else:
+#            return [(1.0, new_state, -1.0, is_done)]
+
 
     def __init__(self,shape,startpt,goalpt,winds):
         
@@ -85,7 +116,7 @@ class DroneGridworldEnvmt(discrete.DiscreteEnv):
         for s in range(self.nS):
             position = np.unravel_index(s, self.shape)
             # print(self.s)
-            if position == self.startpt:
+            if self.s == s:
                 output = " ' "
             elif position in self.sinks:
                 output = " X "
@@ -143,11 +174,11 @@ class DroneGridworldEnvmt(discrete.DiscreteEnv):
             position = np.unravel_index(s, self.shape)
             # print(self.s)
             if position == self.startpt:
-                output = " O "
+                output = " O  "
             elif position in self.sinks:
-                output = " X "
+                output = " X  "
             elif position == self.goalpt:
-                output = " G "
+                output = " G  "
             else:
                 output = action_reps[np.argmax(Q[s])]
 
