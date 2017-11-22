@@ -11,6 +11,8 @@ class controllers:
         self.Go2Goal=Go2Goal(client)
         self.turn_right=tright(client)
         self.turn_left=tleft(client)
+        self.thr_right=trightthrottle(client)
+        self.thr_left=tleftthrottle(client)
         self.stop=stop(client)
         
 class Controller:
@@ -34,6 +36,18 @@ class tright(Controller):
     def act():  
         
 class tleft(Controller):
+     def __init__(self,client):
+        Controller.__init__(client)
+        
+    def act():  
+        
+class trightthrottle(Controller):
+     def __init__(self,client):
+        Controller.__init__(client)
+        
+    def act():  
+        
+class tleftthrottle(Controller):
      def __init__(self,client):
         Controller.__init__(client)
         
