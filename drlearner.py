@@ -1,12 +1,5 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Nov  8 11:05:53 2017
-
-@author: Nishant
-"""
-
-# -*- coding: utf-8 -*-
-"""
 Created on Thu Nov  2 21:43:01 2017
 
 @author: Nishant
@@ -41,7 +34,7 @@ from keras.models import Sequential
 from keras.layers import Dense,Dropout
 from keras.wrappers.scikit_learn import KerasClassifier
 
-class DDPG():
+class DQLearner():
     
     rewards=[]
     temp_buffer=[]
@@ -67,49 +60,16 @@ class DDPG():
         return model
 
     
-#    def QLearn(self,envr,model,nE,pR=False):
-#        #Q= defaultdict(lambda: np.zeros(envr.action_space.n))
-#    
-#        assert not (model == None or envr == None)
-#        
-#        rb=self.new_qlearn_epoch(envr,model,nE,True)
-#        model=self.new_qlearn_epoch(envr,model,nE,False,rb)
-#        
-#        return model
+    def QLearn(self,envr,model,nE,pR=False):
+        #Q= defaultdict(lambda: np.zeros(envr.action_space.n))
     
-    def trainPG(envr):
+        assert not (model == None or envr == None)
         
-        model=create_model(envr)
-        for i in range(MAX_EPISODES):
-            states,rewards,acts=rollout(envr,model)
-            delta=policy_grad(states,rewards,acts)
-            
-            new_acts=
-    
-    def rollout(self,envr,model):
-        e_rewards=[]
-        e_states=[]
-        e_acts=[]
-        c_st=envr.reset()
-        e_states.append(c_st)
-        while n<self.MAX_TRIALS:
-            
-            act=self.get_action()
-            e_acts.append(act)
-            ns,re,done,_=envr.step(act)
- 
-            e_states.append(ns)
-            e_rewards.append(re)
-            
-            if done:
-                return e_states,e_rewards,e_acts
-            
-            c_st=ns
-            
-        return e_states,e_rewards,e_acts
-    
-    def policy_grad(states,rewards,acts):
+        rb=self.new_qlearn_epoch(envr,model,nE,True)
+        model=self.new_qlearn_epoch(envr,model,nE,False,rb)
         
+        return model
+       
     def new_qlearn_epoch(self,envr,model,nE,refill=False,rb=[],buffersize=128):
         
         epsilon=1
