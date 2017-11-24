@@ -15,14 +15,30 @@ import numpy as np
 import matplotlib.pyplot as plt
 from keras.optimizers import Adam
 import random as rand
+from collections import deque
 
 rewards=[]
 buffersize=10000
 batch_size=64
 target_update_threshold=40
 
+
+class Memory():
+    def __init__(self, max_size=1000):
+        self.buffer = deque(maxlen=max_size)
+
+    def add(self, experience):
+        self.buffer.append(experience)
+
+    def sample(self, batch_size):
+        idx = np.random.choice(np.arange(len(self.buffer)),
+                               size=batch_size,
+                               replace=False)
+        return [self.buffer[ii] for ii in idx]
+
+temp_buffer=Memory()
 def create_model(env):
-        learning_rate=0.0005
+        learning_rate=0.001
         #Create a nn of 4 fc and dropout layers
         input = Input(shape=(4,))
         x=Dense(64, activation="relu")(input)
@@ -53,12 +69,26 @@ def QLearn(envr,nE,pR=False):
         model=train(envr,nE)
        
         return model
- 
+
+def initial_run(envr):
+    epsi=1
+    current_pos=envr.reset()
+    for i in range(1000):
+        epsi*=0.99
+        act=rand.choice([0,1])
+        next_state, reward, done, _= envr.step(act)
+        
+        temp_buffer.add([current_pos,act,next_state,reward,done])
+        if done:
+            current_pos=envr.reset()
+        else:
+            current_pos=next_state
+        
 
 def train(envr,nE):
         epsilon=1
         GAMMA=0.99
-        temp_buffer=[]
+        
 
         for i in range(nE):  
             
@@ -78,39 +108,40 @@ def train(envr,nE):
                 next_state, reward, done, _= envr.step(act)
                 #reward=reward if not done else -100
                 
-                temp_buffer.append([current_pos,act,next_state,reward,done])
+                temp_buffer.add([current_pos,act,next_state,reward,done])
                 treward+=reward                
                 
-                if len(temp_buffer)==buffersize:
-                    X=[]
-                    targets=[]
+                #if len(temp_buffer)==buffersize:
+                X=[]
+                targets=[]
                         
-                    while len(temp_buffer)>buffersize-batch_size:
-                            u=fetch_random_value(temp_buffer)
-                            X.append(u[0])
-                            
-                            q1=targetmodel.predict(np.reshape(u[2],(1,4)))[0]
-                            target= model.predict(np.reshape(u[0],(1,4)))[0]
-                    
-                            if u[4]:
-                                target[u[1]]=u[3]
-                            else:
-                                target[u[1]]=u[3]+GAMMA*np.amax(q1)
+                #while len(temp_buffer)>buffersize-batch_size:
+                            #u=fetch_random_value(temp_buffer)
+                us=temp_buffer.sample(batch_size)
+                for u in us:
+                                X.append(u[0])
                                 
-                            targets.append(target)
+                                q1=targetmodel.predict(np.reshape(u[2],(1,4)))[0]
+                                target= model.predict(np.reshape(u[0],(1,4)))[0]
+                        
+                                if u[4]:
+                                    target[u[1]]=u[3]
+                                else:
+                                    target[u[1]]=u[3]+GAMMA*np.amax(q1)
+                                    
+                                targets.append(target)
 
-                    model.train_on_batch(np.reshape(X,(batch_size,4)),np.reshape(targets,(batch_size,2)))#,epochs=1,verbose=0)
+                model.fit(np.reshape(X,(batch_size,4)),np.reshape(targets,(batch_size,2)),epochs=1,verbose=0)
 
                             #temp_buffer=[]
-                    if i%target_update_threshold==0:
+                if i%target_update_threshold==0:
                                 for j in range(len(model.layers)):
                                     targetmodel.layers[j].set_weights(model.layers[j].get_weights())
-                                print('target updates')
                 
                 
                 #model.fit(np.reshape(current_pos,(1,4)),np.reshape(target,(1,2)),epochs=1,verbose=0)
                 
-                if done and (i+1)%10==0:
+                if done :#and (i+1)%10==0:
                     print('Episode:{0}/{2} - Total reward={1}'.format(i+1,treward,nE))
                     rewards.append(treward)
                     
@@ -146,8 +177,9 @@ def run_policy(self,env,model):
                 else:
                     current_pos=next_state
                                 
-env=gym.make('CartPole-v0')
+env=gym.make('CartPole-v1')
 model=create_model(env)
+initial_run(env)
 targetmodel=keras.models.clone_model(model)
-model=QLearn(env,5000)
+model=QLearn(env,1000)
 plt.plot(range(len(rewards)),rewards)
