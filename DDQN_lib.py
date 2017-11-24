@@ -29,7 +29,10 @@ class Memory():
 
 
 class DDQN:
-    
+    # Methods
+    # Init: Inits duel networks; *requires gym based env as arg 
+    # train:Train networks
+    # plot_behavior: Plots total episodic rewards per episode
     def __init__(self,envr,buffersize=1000,batch_size=64,target_update_threshold=40):
         self.rewards=[]
         self.buffersize=buffersize
@@ -40,7 +43,7 @@ class DDQN:
         self.temp_buffer=Memory(buffersize)
         
     def create_model(nA,sD,learning_rate=0.0001):
-        #Create a nn of 4 fc and dropout layers
+        #Create network with below params
         h1size=64
         h2size=64
         svfh1=64
@@ -84,7 +87,7 @@ class DDQN:
             else:
                 current_pos=next_state
 
-    def train(self,nE):
+    def train(self,nE,simu=False):
         
         self.initial_run(self.envr)
         epsilon=1
@@ -99,7 +102,9 @@ class DDQN:
             
             while not done:        
                 
-                #envr._render()
+                if simu:
+                    self.envr._render()
+                
                 q=self.model.predict(np.reshape(current_pos,(1,4)))[0]               
  
                 epsilon*=0.99
@@ -107,17 +112,14 @@ class DDQN:
                 act=self.running_policy(epsilon,q)
                     
                 next_state, reward, done, _= self.envr.step(act)
-                #reward=reward if not done else -100
-                
+
                 self.temp_buffer.add([current_pos,act,next_state,reward,done])
                 treward+=reward                
                 
-                #if len(temp_buffer)==buffersize:
+
                 X=[]
                 targets=[]
-                        
-                #while len(temp_buffer)>buffersize-batch_size:
-                            #u=fetch_random_value(temp_buffer)
+
                 us=self.temp_buffer.sample(self.batch_size)
                 for u in us:
                                 X.append(u[0])
@@ -138,10 +140,7 @@ class DDQN:
                 if i%self.target_update_threshold==0:
                                 for j in range(len(self.model.layers)):
                                     self.targetmodel.layers[j].set_weights(self.model.layers[j].get_weights())
-                
-                
-                #model.fit(np.reshape(current_pos,(1,4)),np.reshape(target,(1,2)),epochs=1,verbose=0)
-                
+
                 if done :#and (i+1)%10==0:
                     print('Episode:{0}/{2} - Total reward={1}'.format(i+1,treward,nE))
                     self.rewards.append(treward)
