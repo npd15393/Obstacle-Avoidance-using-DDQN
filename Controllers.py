@@ -15,48 +15,52 @@ class controllers:
         self.thr_left=tleftthrottle(client)
         self.stop=stop(client)
         
-class Controller:
+#class Controller(object):
+#    def __init__(self,client):
+#        self.client=client
+#        
+#    def act():
+#        return
+#    
+class Go2Goal:#(Controller):
+    def __init__(self,client):
+        self.client=client
+    
+    def act(self,targetpt,vel=5):
+        self.client.moveToPosition(targetpt[0], targetpt[1], targetpt[2], vel)
+
+class tright:#(Controller):
     def __init__(self,client):
         self.client=client
         
-    def act():
+    def act(self):  
         return
     
-class Go2Goal(Controller):
+class tleft:#(Controller):
     def __init__(self,client):
-        Controller.__init__(client)
-    
-    def act(targetpt,vel=5):
-        client.moveToPosition(targetpt[0], targetpt[1], targetpt[2], vel)
-
-class tright(Controller):
-     def __init__(self,client):
-        Controller.__init__(client)
+        self.client=client
         
-    def act():  
+    def act(self): 
+        return
         
-class tleft(Controller):
-     def __init__(self,client):
-        Controller.__init__(client)
+class trightthrottle:#(Controller):
+    def __init__(self,client):
+       self.client=client
         
-    def act():  
+    def act(self):
+        return
         
-class trightthrottle(Controller):
-     def __init__(self,client):
-        Controller.__init__(client)
+class tleftthrottle:#(Controller):
+    def __init__(self,client):
+       self.client=client
         
-    def act():  
+    def act(self):  
+        return
         
-class tleftthrottle(Controller):
-     def __init__(self,client):
-        Controller.__init__(client)
+class stop:#(Controller):
+    def __init__(self,client):
+       self.client=client
         
-    def act():  
-        
-class stop(Controller):
-     def __init__(self,client):
-        Controller.__init__(client)
-        
-    def act():
-        client.hover()
+    def act(self):
+        self.client.hover()
         
