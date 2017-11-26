@@ -19,8 +19,10 @@ from cntk.logging import TensorBoardProgressWriter
 from cntk.ops import abs, argmax, element_select, less, relu, reduce_max, reduce_sum, square
 from cntk.ops.functions import CloneMethod, Function
 from cntk.train import Trainer
-
+from PIL import Image
 import csv
+import pprint
+import matplotlib.pyplot as plt
 
 class ReplayMemory(object):
     """
@@ -431,32 +433,31 @@ class DeepQAgent(object):
         self._metrics_writer.write_value('Sum rewards per ep.', sum(self._episode_rewards), self._num_actions_taken)
 
 def transform_input(responses):
+    margin = 10
     img1d = np.array(responses[0].image_data_float, dtype=np.float)
     img1d = 255/np.maximum(np.ones(img1d.size), img1d)
     img2d = np.reshape(img1d, (responses[0].height, responses[0].width))
-
-    from PIL import Image
     image = Image.fromarray(img2d)
-    im_final = np.array(image.resize((84, 84)).convert('L')) 
-
-    return im_final
+    im_final = np.array(image.resize((84, 84)).convert('L'))  
+    cropped_image = im_final[42-margin: 42+margin , :]
+    return im_final , cropped_image
 
 def interpret_action(action,ctlrs):
-    scaling_factor = 0.25
+    scaling_factor = 0.5
     if action == 0:
         quad_offset = (0, 0, 0)
     elif action == 1:
         quad_offset = (scaling_factor, 0, 0)
     elif action == 2:
         quad_offset = (0, scaling_factor, 0)
-#    elif action == 3:
-#        quad_offset = (0, 0, scaling_factor)
+    elif action == 3:
+        quad_offset = (0, 0, scaling_factor)
     elif action == 3:
         quad_offset = (-scaling_factor, 0, 0)    
     elif action == 4:
         quad_offset = (0, -scaling_factor, 0)
-#    elif action == 6:
-#        quad_offset = (0, 0, -scaling_factor)
+    elif action == 6:
+        quad_offset = (0, 0, -scaling_factor)
 #        ctlrs.Go2Goal.act(targetpt)
 #    elif action == 1:
 #        ctlrs.stop.act
@@ -468,35 +469,37 @@ def interpret_action(action,ctlrs):
 #        ctlrs.thr_left.act()   
 #    elif action == 5:
 #        ctlrs.thr_right.act()
-
-    
     return quad_offset
 
+
 def compute_reward(quad_state, quad_vel, collision_info):
-    thresh_dist = 7
-    beta = 1
-
+    thresh_dist = 1000  #thershold distance for reward function
+    beta = 0.01
     z = -10
-    pts = [np.array([-.55265, -31.9786, -19.0225]), np.array([48.59735, -63.3286, -60.07256]), np.array([193.5974, -55.0786, -46.32256]), np.array([369.2474, 35.32137, -62.5725]), np.array([541.3474, 143.6714, -32.07256])]
-
+    pts = [np.array([-50,77.5,-10])]
     quad_pt = np.array(list((quad_state.x_val, quad_state.y_val, quad_state.z_val)))
 
     if collision_info.has_collided:
-        reward = -1
+        reward = -10  #reward for collision
+        print ('The drone has collided')
     else:    
         dist = 10000000
-        for i in range(0, len(pts)-1):
-            dist = min(dist, np.linalg.norm(np.cross((quad_pt - pts[i]), (quad_pt - pts[i+1])))/np.linalg.norm(pts[i]-pts[i+1]))
-
-        #print(dist)
+        for i in range(0, len(pts)):
+            distance_actual = np.linalg.norm(quad_pt - pts[i])
+            dist = min(dist, distance_actual )
+            print ('Distance : {} '.format(distance_actual))
         if dist > thresh_dist:
             reward = -10
+            print ('Distance : {} , reward =  : {} '.format(dist,reward))
         else:
-            reward_dist = (math.exp(-beta*dist) - 0.5) 
+            loss_dist = (math.exp(beta*dist) - 0.5) 
             reward_speed = (np.linalg.norm([quad_vel.x_val, quad_vel.y_val, quad_vel.z_val]) - 0.5)
-            reward = reward_dist + reward_speed
-
+            reward =  reward_speed - loss_dist
+            print ('Distance : {} , reward_dist : {} , reward_speed : {}  , reward =  : {} '.format(dist,loss_dist,reward_speed,reward))
     return reward
+
+
+
 
 def alt_reward(quad_state, quad_vel,targetpt, collision_info):
 #        thresh_dist = 7
@@ -539,9 +542,9 @@ def sigmoid(x,n):
 
 def isDone(reward):
     done = 0
-    print(client.getVelocity().x_val)
-    if  client.getVelocity().x_val<=0.01 and client.getVelocity().y_val<=0.01 and client.getVelocity().z_val<=0.01:
-        done = 1
+    collision_info = client.getCollisionInfo()
+    if ( collision_info.has_collided ):
+    	done = True
     return done
 
 from Controllers import controllers
@@ -554,9 +557,10 @@ def init_client():
     ctlrs=controllers(client)
     return client,ctlrs
 
-initX = 569
-initY = -10
-initZ = 202
+initX = -.55265
+initY = -31.9786
+initZ = -19.0225
+
 
 #initX = -.55265
 #initY = -31.9786
@@ -566,16 +570,31 @@ initZ = 202
 client,ctlrs = init_client()
 
 
-#client.moveToPosition(initX, initY, initZ, 50)
+#client.moveToPosition(initX, initY, initZ, 5)
 #client.moveByVelocity(1, -0.67, -0.8, 5)
-time.sleep(0.5)
+#time.sleep(0.5)
+print (client.getPosition().x_val,client.getPosition().y_val,client.getPosition().z_val)
+print ('Reached Initial Position ')
 
+'''
+client.moveToPosition(0, 77.5  , -10 , 5)
+client.moveByVelocity(1, -0.67, -0.8, 5)
+time.sleep(0.5)
+print ('Reached Target in Y axis')
+
+
+
+client.moveToPosition(-50, 77.5  , -10 , 5)
+client.moveByVelocity(1, -0.67, -0.8, 5)
+time.sleep(0.5)
+print ('Reached Target in X axis')
+'''
 # Make RL agent
 NumBufferFrames = 4
 SizeRows = 84
 SizeCols = 84
 NumActions = 5
-targetpt=[0.5526,-31.97,-10]
+targetpt=[0.5526,-31.97,202]
 
 agent = DeepQAgent((NumBufferFrames, SizeRows, SizeCols), NumActions,targetpt, monitor=True)
 
@@ -587,32 +606,44 @@ max_steps = epoch * 250000
 responses = client.simGetImages([ImageRequest(3, AirSimImageType.DepthPerspective, True, False)])
 current_state = transform_input(responses)
 
+i = 1
 
+r = []
 while True:
-    action = agent.act(current_state)
-    quad_offset = 0
+    #action = agent.act(current_state)
+    action = 2
     quad_offset=interpret_action(action,ctlrs)
     quad_vel = client.getVelocity()
     quad_pos=client.getPosition()
-    client.moveToPosition(quad_pos.x_val+quad_offset[0], quad_pos.y_val+quad_offset[1], quad_pos.z_val+quad_offset[2], 5)
+    moved = client.moveToPosition(quad_pos.x_val + quad_offset[0], quad_pos.y_val+quad_offset[1], quad_pos.z_val+quad_offset[2], 5 )
+    client.moveByVelocity(-1, +0.67, -0.8, 5)
+    #print (client.getPosition().x_val,client.getPosition().y_val,client.getPosition().z_val)
     time.sleep(0.5)
-
     quad_state = client.getPosition()
     quad_vel = client.getVelocity()
     collision_info = client.getCollisionInfo()
-    reward = alt_reward(quad_state, quad_vel,targetpt, collision_info)
+    # reward = alt_reward(quad_state, quad_vel,targetpt, collision_info)
+    reward = compute_reward(quad_state, quad_vel,collision_info)
     done = isDone(reward)
-    print('Action, Reward, Done:', action, reward, done)
+    print('Action {}  Reward {}  Done: {} '.format(action, reward, done))
+    r.append(reward)
 
-    agent.observe(current_state, action, reward, done)
-    agent.train()
 
+    #agent.observe(current_state, action, reward, done)
+    #agent.train()
+    '''
     if done:
         #client.moveToPosition(initX, initY, initZ, 50)
-#        client.moveByVelocity(1, -0.67, -0.8, 5)
-        client.goHome()
+		#client.moveByVelocity(1, -0.67, -0.8, 5)
+        client.reset()
         time.sleep(0.5)
         current_step +=1
-
-    responses = client.simGetImages([ImageRequest(3, AirSimImageType.DepthPerspective, True, False)])
-    current_state = transform_input(responses)
+	'''
+    responses = client.simGetImages([ImageRequest(1, AirSimImageType.DepthPerspective, True, False)])
+    current_state ,cropped_state = transform_input(responses)
+    if (True):
+    	plt.plot(r)
+    	plt.show()
+    i+=1 
+    # plt.imshow(cropped_state,cmap = 'gray')
+    # plt.show()
