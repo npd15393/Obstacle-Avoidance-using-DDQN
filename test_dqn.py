@@ -432,7 +432,7 @@ def transform_input(responses):
     return im_final
 
 def interpret_action(action):
-    scaling_factor = 0.25
+    scaling_factor = 5
     if action == 0:
         quad_offset = (0, 0, 0)
     elif action == 1:
@@ -454,7 +454,7 @@ def compute_reward(quad_state, quad_vel, collision_info):
     thresh_dist = 1000  #thershold distance for reward function
     beta = 0.01
     z = -10
-    pts = [np.array([-50,77.5,-10])]
+    pts = [np.array([-50,77.5,-5])]
     quad_pt = np.array(list((quad_state.x_val, quad_state.y_val, quad_state.z_val)))
 
     if collision_info.has_collided:
@@ -487,7 +487,7 @@ def compute_reward(quad_state, quad_vel, collision_info):
 
 def isDone(reward):
     done = 0
-    if  reward <= -10: #collide
+    if  reward <= -5: #collide
         done = 1
         print ('The drone failed')
     if (reward  >100):
@@ -496,53 +496,97 @@ def isDone(reward):
     return done
 
 
-# connect to the AirSim simulator 
+
+# The Execution of the program starts from here
+
+# Connect to the AirSim simulator 
 client = MultirotorClient()
 client.confirmConnection()
-client.enableApiControl(True)
-client.armDisarm(True)
+print ('Connection with AirSim established')
 
-client.takeoff()
-#client.moveToPosition(initX, initY, initZ, 5)
-#client.moveByVelocity(1, -0.67, -0.8, 5)
-#time.sleep(0.5)
-print ('Starting fromt the Initial Position ')
+quad_pose = client.getPosition();
+print('QUAD_POS X: {0} Y: {1} Z: {2}'.format(quad_pose.x_val, quad_pose.y_val, quad_pose.z_val))
 
-# Make RL agent
-NumBufferFrames = 4
-SizeRows = 84
-SizeCols = 84
-NumActions = 7
+# Initialize API control
+#client.enableApiControl(True)
 
-agent = DeepQAgent((NumBufferFrames, SizeRows, SizeCols), NumActions, monitor=True)
+# Arm the quadcopter
+#client.armDisarm(True)
 
-# Train
+# Takeoff
+#client.takeoff()
+#print ('Quad takeoff')
+#time.sleep(0.5) # sleep till the quad completes takeoff
+#client.hover()
+#print ('Quad hover')
+
+# Training variables
 epoch = 100
 current_step = 0
 max_steps = epoch * 250000
 n_episodes = 100
 
+# RL Agent Settings
+NumBufferFrames = 4
+SizeRows = 84
+SizeCols = 84
+NumActions = 7
 
+# Make a RL agent
+agent = DeepQAgent((NumBufferFrames, SizeRows, SizeCols), NumActions, monitor=True)
+
+# Training Loop
 for episode in range(n_episodes):
     print ('Starting Episode :', episode)
-    client.reset()
-    time.sleep(0.5)
-    #client.moveToPosition(0,0, -3.5, 5)
-    client.moveByVelocity(1, -0.67, -0.8, 5)
-    print ('The drone is at position')
-    time.sleep(0.5)
-
+    
+    client.reset()  # Reset the environment
+    client.enableApiControl(True)   # Request API control to AirSim    
+    quad_pose = client.getPosition();
+    print('QUAD_POS X: {0} Y: {1} Z: {2}'.format(quad_pose.x_val, quad_pose.y_val, quad_pose.z_val))
+    
+    # Takeoff
+    client.takeoff()
+    print ('Quad takeoff')
+#    time.sleep(0.5) # sleep till the quad completes takeoff    
+    quad_pose = client.getPosition();
+    print('QUAD_POS X: {0} Y: {1} Z: {2}'.format(quad_pose.x_val, quad_pose.y_val, quad_pose.z_val))
+    
+    client.moveToPosition(0, 0, -5, 5) # Move 5 meter above home
+    quad_pose = client.getPosition();
+    print('QUAD_POS X: {0} Y: {1} Z: {2}'.format(quad_pose.x_val, quad_pose.y_val, quad_pose.z_val))
+    
+#    client.moveByVelocityZ(5, 5, -5, 60, DrivetrainType.ForwardOnly, YawMode(False, 0)) # Move 5,5,5 meter in heading mode
+#    quad_pose = client.getPosition();
+#    print('QUAD_POS X: {0} Y: {1} Z: {2}'.format(quad_pose.x_val, quad_pose.y_val, quad_pose.z_val))
+    
+    
     responses = client.simGetImages([ImageRequest(1, AirSimImageType.DepthPerspective, True, False)])
     current_state = transform_input(responses)
     i = 1
     r = []
     for steps in range(max_steps):
+        
+        # Testing space
+#        client.moveToPosition(0, 0, -5, 5) # Move 5 meter above home
+#        quad_pose = client.getPosition();
+#        print('QUAD_POS X: {0} Y: {1} Z: {2}'.format(quad_pose.x_val, quad_pose.y_val, quad_pose.z_val))
+        
         action = agent.act(current_state)
         quad_offset = interpret_action(action)
+        
         quad_vel = client.getVelocity()
-        client.moveByVelocity(quad_vel.x_val+quad_offset[0], quad_vel.y_val+quad_offset[1], quad_vel.z_val+quad_offset[2], 5)
-        time.sleep(0.5)
-
+#        quad_pose = client.getPosition();
+#        client.moveByVelocity(quad_vel.x_val+quad_offset[0], quad_vel.y_val+quad_offset[1], quad_vel.z_val+quad_offset[2], 10)
+#        client.moveByVelocityZ(quad_vel.x_val+quad_offset[0], quad_vel.y_val+quad_offset[1], -5, 10)
+        client.moveByVelocityZ(quad_vel.x_val+quad_offset[0], quad_vel.y_val+quad_offset[1], -5, 10, DrivetrainType.ForwardOnly, YawMode(False, 0)) # Move in heading mode
+#        client.moveToPosition(quad_pose.x_val+quad_offset[0], quad_pose.y_val+quad_offset[1], -5, 5, 10, DrivetrainType.ForwardOnly, YawMode(False, 0)) # Move in heading mode
+#        client.moveToPosition(quad_pose.x_val+quad_offset[0], quad_pose.y_val+quad_offset[1], -5, 5) # Move in heading mode
+        time.sleep(0.1) 
+        quad_pose = client.getPosition();
+        print('QUAD_POS X: {0} Y: {1} Z: {2}'.format(quad_pose.x_val, quad_pose.y_val, quad_pose.z_val))
+        
+   
+       
         quad_state = client.getPosition()
         quad_vel = client.getVelocity()
         collision_info = client.getCollisionInfo()
