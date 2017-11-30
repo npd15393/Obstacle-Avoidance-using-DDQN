@@ -3,9 +3,13 @@ Latest Version: 0.0.3
 Format: 
 ### DRL_PROJECT_0.0.1 ###
 
+### DRL_PROJECT_0.0.6 ###
+	1. Fixed plot saving bug: Now saving average reward vs episodes as well.
+	2. Switched back to move by velocity keeping constant heading.
+
 ### DRL_PROJECT_0.0.5 ###
 	1. Fixed Collision
-	2. Chnaged reward function to Manhattan
+	2. Changed reward function to Manhattan
 	3. Checked Action values
 	4. Saving reward plots every 20 episodes
 	5. Saving weights every 20 episodes

@@ -534,8 +534,8 @@ print('QUAD_POS X: {0} Y: {1} Z: {2}'.format(quad_pose.x_val, quad_pose.y_val, q
 #print ('Quad hover')
 
 # Training variables
-n_episodes = 1000
-eps_save_model = 20
+n_episodes = 500
+eps_save_model = 10
 
 # RL Agent Settings
 NumBufferFrames = 4
@@ -601,18 +601,16 @@ for episode in range(n_episodes):
         # print('QUAD_POS X: {0} Y: {1} Z: {2}'.format(quad_pose.x_val, quad_pose.y_val, quad_pose.z_val))
         
         action = agent.act(current_state)
-        
         quad_offset = interpret_action(action)
-        
         quad_vel = client.getVelocity()
         # quad_pose = client.getPosition();
 
         # client.moveByVelocity(-5.0, +5.0, -5.4, 20)
         # client.moveByVelocityZ(-1, 5, -5, 1)
-        
+
         # client.moveByVelocity(quad_vel.x_val+quad_offset[0], quad_vel.y_val+quad_offset[1], quad_vel.z_val+quad_offset[2], 1)
-        # client.moveByVelocityZ(quad_vel.x_val+quad_offset[0], quad_vel.y_val+quad_offset[1], -5, 5)
-        client.moveByVelocityZ(quad_vel.x_val+quad_offset[0], quad_vel.y_val+quad_offset[1], -5, 5, DrivetrainType.ForwardOnly, YawMode(False, 0)) # Move in heading mode
+        client.moveByVelocityZ(quad_vel.x_val+quad_offset[0], quad_vel.y_val+quad_offset[1], -5, 5)
+        # client.moveByVelocityZ(quad_vel.x_val+quad_offset[0], quad_vel.y_val+quad_offset[1], -5, 5, DrivetrainType.ForwardOnly, YawMode(False, 0)) # Move in heading mode
         # client.moveToPosition(quad_pose.x_val+quad_offset[0], quad_pose.y_val+quad_offset[1], -5, 5, 1, DrivetrainType.ForwardOnly, YawMode(False, 0)) # Move in heading mode
         # client.moveToPosition(quad_pose.x_val+quad_offset[0], quad_pose.y_val+quad_offset[1], -5, 5) # Move in heading mode
         # time.sleep(0.1) 
@@ -642,30 +640,47 @@ for episode in range(n_episodes):
 
         # Get the image and gaet the next state
         responses = client.simGetImages([ImageRequest(1, AirSimImageType.DepthPerspective, True, False)])
-        current_state = transform_input(responses) 
+        current_state = transform_input(responses)
+        # plt.imshow(cropped_state,cmap = 'gray')
+
+        # plt.figure()
         # plt.plot(r)
         # plt.ylabel('Reward')
         # plt.xlabel('Episode Length')
         # plt.savefig('savedRewards/EP' + str(episode))
         # plt.show()
-
-        # # plt.imshow(cropped_state,cmap = 'gray')
-
-    # Save model after every eps_save_model episodes
-    if ( episode % eps_save_model) == 0:
-        agent._save_models()
-
-        # Save reward plots
-        plt.plot(r)
-        plt.ylabel('Reward')
-        plt.xlabel('Episode Length')
-        plt.savefig('savedRewards/EP' + str(episode))
+        # plt.close()
 
     print ('Will train after {}'.format(( 500 - agent._num_actions_taken ) % 500))
+    
     # plt.plot(r)
     # plt.show()
+
+    # Log episode length and average reward for every episode
     episode_length.append(len(r))    
     avg_reward.append(sum(r)/len(r))
+
+    # Save model after every eps_save_model episodes
+    if (episode % eps_save_model) == 0:
+        agent._save_models()
+
+        # Save reward plot for the episode
+        plt.figure()
+        plt.plot(r)
+        plt.ylabel('Reward')
+        plt.xlabel('Steps')
+        plt.title('Reward vs Episode Steps')
+        plt.savefig('savedRewards/EP' + str(episode))
+        plt.close()
+
+        # Save avg_reward vs episodes
+        plt.figure()
+        plt.plot(avg_reward)
+        plt.ylabel('Average Reward')
+        plt.xlabel('Episodes')
+        plt.title('Average Reward vs Episodes')
+        plt.savefig('savedRewards/AvgRewardVsEp')
+        plt.close()
 
 print('******************************END***********************************')
 print ('The Training has been completed for {} episodes with model saved '.format(n_episodes))
