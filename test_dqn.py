@@ -8,7 +8,7 @@ from cntk.layers.typing import Signature, Tensor
 from cntk.learners import adam, learning_rate_schedule, momentum_schedule, UnitType
 from cntk.logging import TensorBoardProgressWriter
 from cntk.ops import abs, argmax, element_select, less, relu, reduce_max, reduce_sum, square
-from cntk.ops.functions import CloneMethod, Function
+from cntk.ops.functions import CloneMethod, Function, load_model
 from cntk.train import Trainer
 import csv
 from PIL import Image
@@ -247,10 +247,10 @@ class DeepQAgent(object):
         Nature 518. "Human-level control through deep reinforcement learning" (Mnih & al. 2015)
     """
     def __init__(self, input_shape, nb_actions,
-                 gamma=0.99, explorer=LinearEpsilonAnnealingExplorer(1, 0.1, 1000),
+                 gamma=0.99, explorer=LinearEpsilonAnnealingExplorer(1, 0.1, 10000),
                  learning_rate=0.001, momentum=0.95, minibatch_size=32,
-                 memory_size=500000, train_after=500, train_interval=4, target_update_interval=1000,
-                 monitor=True):
+                 memory_size=500000, train_after= 500, train_interval=500, target_update_interval=1000,
+                 monitor=True): 
         self.input_shape = input_shape
         self.nb_actions = nb_actions
         self.gamma = gamma
@@ -385,13 +385,13 @@ class DeepQAgent(object):
 
         The Target Network is a frozen copy of the Action Value Network updated as regular intervals.
         """
-        print ('Training the agent')
         agent_step = self._num_actions_taken
 
         if agent_step >= self._train_after:
             if (agent_step % self._train_interval) == 0:
                 pre_states, actions, post_states, rewards, terminals = self._memory.minibatch(self._minibatch_size)
-
+                
+                print ('Training the agent')
                 self._trainer.train_minibatch(
                     self._trainer.loss_function.argument_map(
                         pre_states=pre_states,
@@ -404,6 +404,7 @@ class DeepQAgent(object):
 
                 # Update the Target Network if needed
                 if (agent_step % self._target_update_interval) == 0:
+                    print ('Updating the target Network')
                     self._target_net = self._action_value_net.clone(CloneMethod.freeze)
                     filename = "models\model%d" % agent_step
                     self._trainer.save_checkpoint(filename)
@@ -422,9 +423,14 @@ class DeepQAgent(object):
         self._metrics_writer.write_value('Sum rewards per ep.', sum(self._episode_rewards), self._num_actions_taken)
 
     def _save_models(self):
-        self._target_net.save('Target_net')
-        self._action_value_net.save('Action_vale_net')
+        self._target_net.save('trainedModels/Target_net')
+        self._action_value_net.save('trainedModels/Action_vale_net')
         print ('Action value and Target model saved')
+        
+    def _load_models(self):
+        self._target_net = load_model('trainedModels/Target_net')
+        self._action_value_net = load_model('trainedModels/Action_vale_net')
+        print ('Action value and Target model loaded')
         
 def transform_input(responses):
     margin = 10
@@ -443,26 +449,27 @@ def interpret_action(action):
     elif action == 1:
         quad_offset = (scaling_factor, 0, 0)
     elif action == 2:
-        quad_offset = (0, scaling_factor, 0)
+        quad_offset = (-scaling_factor, 0, 0)
     elif action == 3:
-        quad_offset = (0, 0, scaling_factor)
+        quad_offset = (0, scaling_factor, 0)
     elif action == 4:
-        quad_offset = (-scaling_factor, 0, 0)    
-    elif action == 5:
-        quad_offset = (0, -scaling_factor, 0)
-    elif action == 6:
-        quad_offset = (0, 0, -scaling_factor)
+        quad_offset = (0, -scaling_factor, 0)    
+    # elif action == 5:
+    #     quad_offset = (0, -scaling_factor, 0)
+    # elif action == 6:
+    #     quad_offset = (0, 0, -scaling_factor)
     
     return quad_offset
 
 def compute_reward(quad_state, quad_vel, collision_info):
-    thresh_dist = 1000  #thershold distance for reward function
+    thresh_dist = 500  #thershold distance for reward function
     beta = 0.05
     z = -10
-    pts = [np.array([-50,77.5,-5])]
+    pts = [np.array([-50, 77.5, -5])]
     quad_pt = np.array(list((quad_state.x_val, quad_state.y_val, quad_state.z_val)))
 
-    if collision_info.has_collided:
+    # if collision_info.has_collided:
+    if (collision_info.position[b'x_val'] != 0) or (collision_info.position[b'y_val'] != 0) or (collision_info.position[b'z_val'] != 0):
         reward = -200  #reward for collision
         print ('The drone has collided')    
     else:    
@@ -472,15 +479,16 @@ def compute_reward(quad_state, quad_vel, collision_info):
             dist = min(dist, distance_actual )
             # print ('Distance : {} '.format(distance_actual))
         if dist > thresh_dist:
-            reward = -120
+            reward = -160
             # print ('Distance : {} , reward =  : {} '.format(dist,reward))
-        elif (dist < 5 ):
+        elif (dist < 10 ):
             reward = 200 
             print ('The goal is reached ')    
         else:
-            loss_dist = (math.exp(beta*dist) - 0.5) 
+            # loss_dist = (math.exp(beta*dist) - 0.5) 
             reward_speed = (np.linalg.norm([quad_vel.x_val, quad_vel.y_val, quad_vel.z_val]) - 0.5)
-            reward =  reward_speed - loss_dist
+            # reward =  reward_speed - loss_dist
+            reward = -sum(np.absolute(pts[0] - quad_pt)) 
             # print ('Distance : {} , reward_dist : {} , reward_speed : {}  , reward =  : {} '.format(dist,loss_dist,reward_speed,reward))
         if (quad_state.z_val < -100):
             reward -= 100
@@ -492,10 +500,10 @@ def compute_reward(quad_state, quad_vel, collision_info):
 
 def isDone(reward):
     done = 0
-    if  reward <= -110: #collide
+    if  reward <= -150: #collide
         done = 1
-        print ('The drone failed')
-    if (reward  >100):
+        print ('The drone failed to reach the goal')
+    if (reward  > -5):
         done = 1
         print ('The drone reached nice.')     
     return done
@@ -526,17 +534,16 @@ print('QUAD_POS X: {0} Y: {1} Z: {2}'.format(quad_pose.x_val, quad_pose.y_val, q
 #print ('Quad hover')
 
 # Training variables
-epoch = 100
-current_step = 0
-n_episodes = 2000
+n_episodes = 1000
 eps_save_model = 20
+
 # RL Agent Settings
 NumBufferFrames = 4
 SizeRows = 84
 SizeCols = 84
-NumActions = 7
+NumActions = 5
 
-episode_lenght = []
+episode_length = []
 avg_reward = []
 # Make a RL agent
 agent = DeepQAgent((NumBufferFrames, SizeRows, SizeCols), NumActions, monitor=True)
@@ -544,90 +551,117 @@ agent = DeepQAgent((NumBufferFrames, SizeRows, SizeCols), NumActions, monitor=Tr
 # Training Loop
 for episode in range(n_episodes):
     print ('Starting Episode :', episode)
-    max_steps = int(5*episode) + 300    
+
+    max_steps = int(20*episode) + 1000   
     client.reset()  # Reset the environment
-    client.enableApiControl(True)   # Request API control to AirSim    
-    quad_pose = client.getPosition();
-#    print('QUAD_POS X: {0} Y: {1} Z: {2}'.format(quad_pose.x_val, quad_pose.y_val, quad_pose.z_val))
+    client.enableApiControl(True)   # Request API control to AirSim 
+
+    # quad_pose = client.getPosition();
+    # print('QUAD_POS X: {0} Y: {1} Z: {2}'.format(quad_pose.x_val, quad_pose.y_val, quad_pose.z_val))
   
     # Takeoff
     client.takeoff()
     print ('Quad takeoff')
-#    time.sleep(0.5) # sleep till the quad completes takeoff    
-    quad_pose = client.getPosition();
-#    print('QUAD_POS X: {0} Y: {1} Z: {2}'.format(quad_pose.x_val, quad_pose.y_val, quad_pose.z_val))
+    # quad_pose = client.getPosition();
+    # print('QUAD_POS X: {0} Y: {1} Z: {2}'.format(quad_pose.x_val, quad_pose.y_val, quad_pose.z_val))
     
     client.moveToPosition(0, 0, -5, 5) # Move 5 meter above home
-    quad_pose = client.getPosition();
-#    print('QUAD_POS X: {0} Y: {1} Z: {2}'.format(quad_pose.x_val, quad_pose.y_val, quad_pose.z_val))
+    # quad_pose = client.getPosition();
+    # print('QUAD_POS X: {0} Y: {1} Z: {2}'.format(quad_pose.x_val, quad_pose.y_val, quad_pose.z_val))
     
-#    client.moveByVelocityZ(5, 5, -5, 60, DrivetrainType.ForwardOnly, YawMode(False, 0)) # Move 5,5,5 meter in heading mode
-#    quad_pose = client.getPosition();
-#    print('QUAD_POS X: {0} Y: {1} Z: {2}'.format(quad_pose.x_val, quad_pose.y_val, quad_pose.z_val))
+    # client.moveByVelocityZ(5, 5, -5, 60, DrivetrainType.ForwardOnly, YawMode(False, 0)) # Move 5,5,5 meter in heading mode
+    # quad_pose = client.getPosition();
+    # print('QUAD_POS X: {0} Y: {1} Z: {2}'.format(quad_pose.x_val, quad_pose.y_val, quad_pose.z_val))
+
+    # client.moveToPosition(100, 0, -5, 5) # Move 5 meter above home
+    # # Get the state of the agent
+    # quad_pose = client.getPosition()
+    # quad_vel = client.getVelocity()
+    # collision_info = client.getCollisionInfo()
+    # # Compute rewawd
+    # reward = compute_reward(quad_pose, quad_vel, collision_info)
     
-    
-    responses = client.simGetImages([ImageRequest(1, AirSimImageType.DepthPerspective, True, False)])
-    current_state = transform_input(responses)
+    # Reset loop variables
     i = 1
     r = []
+
+    # Get the initial image from the camera
+    responses = client.simGetImages([ImageRequest(1, AirSimImageType.DepthPerspective, True, False)])
+    current_state = transform_input(responses)
+    
     for steps in range(max_steps):
         
+        if steps == (max_steps -1):
+            print('Max Steps reached')
+        
         # Testing space
-#        client.moveToPosition(0, 0, -5, 5) # Move 5 meter above home
-#        quad_pose = client.getPosition();
-#        print('QUAD_POS X: {0} Y: {1} Z: {2}'.format(quad_pose.x_val, quad_pose.y_val, quad_pose.z_val))
+        # client.moveToPosition(0, 0, -5, 5) # Move 5 meter above home
+        # quad_pose = client.getPosition();
+        # print('QUAD_POS X: {0} Y: {1} Z: {2}'.format(quad_pose.x_val, quad_pose.y_val, quad_pose.z_val))
         
         action = agent.act(current_state)
+        
         quad_offset = interpret_action(action)
         
         quad_vel = client.getVelocity()
-#        quad_pose = client.getPosition();
-#        client.moveByVelocity(quad_vel.x_val+quad_offset[0], quad_vel.y_val+quad_offset[1], quad_vel.z_val+quad_offset[2], 10)
-        client.moveByVelocityZ(quad_vel.x_val+quad_offset[0], quad_vel.y_val+quad_offset[1], -5, 10)
-#        client.moveByVelocityZ(quad_vel.x_val+quad_offset[0], quad_vel.y_val+quad_offset[1], -5, 10, DrivetrainType.ForwardOnly, YawMode(False, 0)) # Move in heading mode
-#        client.moveToPosition(quad_pose.x_val+quad_offset[0], quad_pose.y_val+quad_offset[1], -5, 5, 10, DrivetrainType.ForwardOnly, YawMode(False, 0)) # Move in heading mode
-#        client.moveToPosition(quad_pose.x_val+quad_offset[0], quad_pose.y_val+quad_offset[1], -5, 5) # Move in heading mode
-        time.sleep(0.1) 
-        quad_pose = client.getPosition();
-#        print('QUAD_POS X: {0} Y: {1} Z: {2}'.format(quad_pose.x_val, quad_pose.y_val, quad_pose.z_val))
+        # quad_pose = client.getPosition();
+        # client.moveByVelocity(quad_vel.x_val+quad_offset[0], quad_vel.y_val+quad_offset[1], quad_vel.z_val+quad_offset[2], 1)
+        client.moveByVelocityZ(quad_vel.x_val+quad_offset[0], quad_vel.y_val+quad_offset[1], -5, 5)
         
-   
-       
-        quad_state = client.getPosition()
+        # client.moveByVelocity(-5.0, +5.0, -5.4, 20)
+        # client.moveByVelocityZ(-1, 5, -5, 1)
+        
+        # client.moveByVelocityZ(quad_vel.x_val+quad_offset[0], quad_vel.y_val+quad_offset[1], -5, 1, DrivetrainType.ForwardOnly, YawMode(False, 0)) # Move in heading mode
+        # client.moveToPosition(quad_pose.x_val+quad_offset[0], quad_pose.y_val+quad_offset[1], -5, 5, 1, DrivetrainType.ForwardOnly, YawMode(False, 0)) # Move in heading mode
+        # client.moveToPosition(quad_pose.x_val+quad_offset[0], quad_pose.y_val+quad_offset[1], -5, 5) # Move in heading mode
+        # time.sleep(0.1) 
+        # quad_pose = client.getPosition();
+        # print('QUAD_POS X: {0} Y: {1} Z: {2}'.format(quad_pose.x_val, quad_pose.y_val, quad_pose.z_val))        
+
+        # Get the state of the agent
+        quad_pose = client.getPosition()
         quad_vel = client.getVelocity()
         collision_info = client.getCollisionInfo()
-        reward = compute_reward(quad_state, quad_vel,collision_info)
+        
+        # Compute rewawd
+        reward = compute_reward(quad_pose, quad_vel, collision_info)
+
+        # Check if the episode is done
         done = isDone(reward)
-        print('Action {}  Reward {}  Done: {} '.format(action, reward, done))
-        r.append(reward)
-     
+        print('Episode {} Action {}  Reward {}  Done: {} '.format(episode, action, reward, done))
+
+        r.append(reward)     
         agent.observe(current_state, action, reward, done)
         agent.train()
 
+        # If episode is done then break
         if done:
-            print ('The episode is done')
+            print ('The episode {0} is done.'.format(episode))
             break
 
+        # Get the image and gaet the next state
         responses = client.simGetImages([ImageRequest(1, AirSimImageType.DepthPerspective, True, False)])
         current_state = transform_input(responses) 
-        # plt.imshow(cropped_state,cmap = 'gray')
+        # plt.plot(r)
+        # plt.show()
+        # # plt.imshow(cropped_state,cmap = 'gray')
+
+    # Save model after every eps_save_model episodes
     if ( episode % eps_save_model) == 0:
-       agent._save_models() 
-    print ('Will train after {}'.format(( 500 - agent._num_actions_taken )% 500))
-    #plt.plot(r)
-    #plt.show()
-    episode_lenght.append(len(r))    
+        agent._save_models()
+
+    print ('Will train after {}'.format(( 500 - agent._num_actions_taken ) % 500))
+    # plt.plot(r)
+    # plt.show()
+    episode_length.append(len(r))    
     avg_reward.append(sum(r)/len(r))
-
-
 
 print('******************************END***********************************')
 print ('The Training has been completed for {} episodes with model saved '.format(n_episodes))
 print ('Stay Calm and Test the model')
 
 plt.subplot(1,2,1)
-plt.plot(episode_lenght)
+plt.plot(episode_length)
 plt.subplot(1,2,2)
 plt.plot(avg_reward)
 plt.show()
-

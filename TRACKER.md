@@ -3,6 +3,10 @@ Latest Version: 0.0.3
 Format: 
 ### DRL_PROJECT_0.0.1 ###
 
+### DRL_PROJECT_0.0.5 ###
+	1. Fixed Collision
+	2. Chnaged reward function to Manhattan
+	3. Checked Action values
 
 ### DRL_PROJECT_0.0.4 ###
 	1. Added weight saving to file.
