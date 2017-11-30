@@ -543,6 +543,7 @@ SizeRows = 84
 SizeCols = 84
 NumActions = 5
 
+plt_save_after = 100
 episode_length = []
 avg_reward = []
 # Make a RL agent
@@ -605,13 +606,13 @@ for episode in range(n_episodes):
         
         quad_vel = client.getVelocity()
         # quad_pose = client.getPosition();
-        # client.moveByVelocity(quad_vel.x_val+quad_offset[0], quad_vel.y_val+quad_offset[1], quad_vel.z_val+quad_offset[2], 1)
-        client.moveByVelocityZ(quad_vel.x_val+quad_offset[0], quad_vel.y_val+quad_offset[1], -5, 5)
-        
+
         # client.moveByVelocity(-5.0, +5.0, -5.4, 20)
         # client.moveByVelocityZ(-1, 5, -5, 1)
         
-        # client.moveByVelocityZ(quad_vel.x_val+quad_offset[0], quad_vel.y_val+quad_offset[1], -5, 1, DrivetrainType.ForwardOnly, YawMode(False, 0)) # Move in heading mode
+        # client.moveByVelocity(quad_vel.x_val+quad_offset[0], quad_vel.y_val+quad_offset[1], quad_vel.z_val+quad_offset[2], 1)
+        # client.moveByVelocityZ(quad_vel.x_val+quad_offset[0], quad_vel.y_val+quad_offset[1], -5, 5)
+        client.moveByVelocityZ(quad_vel.x_val+quad_offset[0], quad_vel.y_val+quad_offset[1], -5, 5, DrivetrainType.ForwardOnly, YawMode(False, 0)) # Move in heading mode
         # client.moveToPosition(quad_pose.x_val+quad_offset[0], quad_pose.y_val+quad_offset[1], -5, 5, 1, DrivetrainType.ForwardOnly, YawMode(False, 0)) # Move in heading mode
         # client.moveToPosition(quad_pose.x_val+quad_offset[0], quad_pose.y_val+quad_offset[1], -5, 5) # Move in heading mode
         # time.sleep(0.1) 
@@ -643,12 +644,22 @@ for episode in range(n_episodes):
         responses = client.simGetImages([ImageRequest(1, AirSimImageType.DepthPerspective, True, False)])
         current_state = transform_input(responses) 
         # plt.plot(r)
+        # plt.ylabel('Reward')
+        # plt.xlabel('Episode Length')
+        # plt.savefig('savedRewards/EP' + str(episode))
         # plt.show()
+
         # # plt.imshow(cropped_state,cmap = 'gray')
 
     # Save model after every eps_save_model episodes
     if ( episode % eps_save_model) == 0:
         agent._save_models()
+
+        # Save reward plots
+        plt.plot(r)
+        plt.ylabel('Reward')
+        plt.xlabel('Episode Length')
+        plt.savefig('savedRewards/EP' + str(episode))
 
     print ('Will train after {}'.format(( 500 - agent._num_actions_taken ) % 500))
     # plt.plot(r)

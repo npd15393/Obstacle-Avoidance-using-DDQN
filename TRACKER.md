@@ -7,6 +7,8 @@ Format:
 	1. Fixed Collision
 	2. Chnaged reward function to Manhattan
 	3. Checked Action values
+	4. Saving reward plots every 20 episodes
+	5. Saving weights every 20 episodes
 
 ### DRL_PROJECT_0.0.4 ###
 	1. Added weight saving to file.
