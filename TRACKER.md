@@ -4,6 +4,9 @@ Format:
 ### DRL_PROJECT_0.0.1 ###
 
 
+### DRL_PROJECT_0.0.8 ###
+	1. Fixed yawing issue; Now moving the quad in MaxDegreesOfFreedom mode and setting the yaw independently.
+
 ### DRL_PROJECT_0.0.7 ###
 	1. Added Play.py for testing
 	2. Better_drl_dqn.py for yaw and new reward approach

@@ -463,30 +463,31 @@ def compute_reward(quad_state, quad_vel, collision_info):
     thresh_dist = 500  #thershold distance for reward function
     beta = 0.05
     z = -10
-    p2 = np.array(list((-50, 77.5))) #goal
-    p1 = np.array(list((0,0))) #starting pt
-    p3 = np.array(list((quad_state.x_val, quad_state.y_val))) #current_point  
-    d = norm(np.cross(p2-p1, p1-p3))/norm(p2-p1) #perpendicular distance
+    p1 = np.array(list((0,0))) # Starting Position
+    p2 = np.array(list((-50, 77.5))) # Goal Position
+    p3 = np.array(list((quad_state.x_val, quad_state.y_val))) # Currnet Position  
+    ct_d = norm(np.cross(p2-p1, p1-p3))/norm(p2-p1) # Cross-track distance
     
     # if collision_info.has_collided:
     if (collision_info.position[b'x_val'] != 0) or (collision_info.position[b'y_val'] != 0) or (collision_info.position[b'z_val'] != 0):
-        reward = -200  #reward for collision
+        reward = -200  # Negative reward for collision
         print ('The drone has collided')    
 
     else:    
-        #get the perpendicular distance from the line
-        perpendicular_reward = d
-        # print ('The perpendicular distance obtained is {} and the reward is {}'.format(d,perpendicular_reward))
+        # Calculate reward for cross-track error
+        perpendicular_reward = ct_d*2.0
+        # print ('The perpendicular distance obtained is {} and the reward is {}'.format(ct_d,perpendicular_reward))
 
-        #get the goal distance:
+        # Get the goal distance:
         goal_dist = norm(p3-p2)
-        goal_reward = goal_dist*1.0 
+        goal_reward = goal_dist*2.0 
         # print ('The goal distance obtained is {} and the reward is {}'.format(goal_dist,goal_reward))
+
         if goal_dist < 10 :
             reward  = 1000    
         else:
-            reward = 100 - perpendicular_reward*1.0 - goal_dist
-            # print ('reward : {} '.format(reward))
+            reward = 100 - perpendicular_reward - goal_dist
+            print ('reward : {} '.format(reward))
     return reward
 
 
@@ -509,7 +510,24 @@ def get_directional_velocity(Vel = 1 , theta = 0):
     return (Vel*cos(theta),Vel*sin(theta))
     # quad_pose = client.getPosition();
     # quad_position = np.array(quad_pose.x_val, quad_pose.y_val )
-
+    
+def moveInHeading(client, velocity = 1, heading = 0, altitude = -5, duration = 1):
+    # Move the Quad in 'heading' direction pointing forwards with velocity
+    Vx = math.cos(math.radians(heading)) * velocity
+    Vy = math.sin(math.radians(heading)) * velocity
+    (pitch, roll, yaw) = client.getPitchRollYaw()
+    roll = math.degrees(roll)
+    pitch = math.degrees(pitch)
+    yaw = math.degrees(yaw)
+    yaw_err = heading - yaw
+    # print('Roll: {0} Pitch: {1} Yaw: {2}'.format(roll, pitch, yaw))
+    client.moveByVelocityZ(Vx, Vy, altitude, duration, DrivetrainType.MaxDegreeOfFreedom, YawMode(False, yaw_err/pi)) # Move 5,5,5 meter in heading mode
+    (pitch, roll, yaw) = client.getPitchRollYaw()
+    roll = math.degrees(roll)
+    pitch = math.degrees(pitch)
+    yaw = math.degrees(yaw)
+    yaw_err = heading - yaw
+    # print('Roll: {0} Pitch: {1} Yaw: {2}'.format(roll, pitch, yaw))
 
 # The Execution of the program starts from here
 
@@ -535,7 +553,7 @@ print('QUAD_POS X: {0} Y: {1} Z: {2}'.format(quad_pose.x_val, quad_pose.y_val, q
 #print ('Quad hover')
 
 # Training variables
-n_episodes = 500
+n_episodes = 1000
 eps_save_model = 10
 
 # RL Agent Settings
@@ -550,8 +568,9 @@ avg_reward = []
 # Make a RL agent
 agent = DeepQAgent((NumBufferFrames, SizeRows, SizeCols), NumActions, monitor=True)
 
-V = 3   # Velocity o fhte Quad
+V = 5   # Velocity of the Quad
 
+pi = 3.14
 
 #Training Loop
 for episode in range(n_episodes):
@@ -566,8 +585,12 @@ for episode in range(n_episodes):
     print ('Quad takeoff')
     
     client.moveToPosition(0, 0, -5, 5) # Move 5 meter above home
-    # client.rotateToYaw(90)    
-    # client.moveByVelocityZ(5, 5, -5, 60, DrivetrainType.ForwardOnly, YawMode(False, 0)) # Move 5,5,5 meter in heading mode
+    # client.rotateToYaw(90)
+    
+#    moveInHeading(client, 1, 45, -5, 5)
+#    moveInHeading(client, 1, -45, -5, 5)
+#    moveInHeading(client, 1, 0, -5, 5)
+#    moveInHeading(client, 1, 180, -5, 5)
     
     # Reset loop variables
     i = 1
@@ -603,12 +626,14 @@ for episode in range(n_episodes):
             yaw = yaw + 360
 
         # Calculate Vx and Vy components of velocity V
-        Vx = V*(math.cos(math.radians(yaw)))
-        Vy = V*(math.sin(math.radians(yaw)))
+        # Vx = V*(math.cos(math.radians(yaw)))
+        # Vy = V*(math.sin(math.radians(yaw)))
 
-        print('Yaw: {0} Vx: {1} Vy: {2}'.format(yaw, Vx, Vy))
+        # print('Yaw: {0} Vx: {1} Vy: {2}'.format(yaw, Vx, Vy))
 
-        client.moveByVelocityZ(Vx, Vy, -5, 1 , DrivetrainType.ForwardOnly, YawMode(False, 0))
+        # client.moveByVelocityZ(Vx, Vy, -5, 1 , DrivetrainType.ForwardOnly, YawMode(False, 0))
+
+        moveInHeading(client, V, yaw, -5, 5)
 
         # Testing move Commands
         # client.moveByVelocity(0.0, +5.0, -2, 20)
