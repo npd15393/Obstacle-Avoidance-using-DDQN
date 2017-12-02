@@ -250,7 +250,7 @@ class DeepQAgent(object):
         Nature 518. "Human-level control through deep reinforcement learning" (Mnih & al. 2015)
     """
     def __init__(self, input_shape, nb_actions,
-                 gamma=0.99, explorer=LinearEpsilonAnnealingExplorer(1, 0.1, 400000),
+                 gamma=0.99, explorer=LinearEpsilonAnnealingExplorer(1, 0.1, 100000),
                  learning_rate=0.001, momentum=0.95, minibatch_size=32,
                  memory_size=500000, train_after= 500, train_interval=500, target_update_interval=1000,
                  monitor=True): 
@@ -459,12 +459,13 @@ def interpret_action(action):
     
     return quad_yaw_offset
 
-def compute_reward(quad_state, quad_vel, collision_info):
+def compute_reward(quad_state, quad_vel, collision_info, yaw_rate):
     thresh_dist = 500  #thershold distance for reward function
     beta = 0.05
     z = -10
     p1 = np.array(list((0,0))) # Starting Position
-    p2 = np.array(list((-50, 77.5))) # Goal Position
+    # p2 = np.array(list((-50, 77.5))) # Goal Position
+    p2 = np.array(list((0, 50))) # Goal Position
     p3 = np.array(list((quad_state.x_val, quad_state.y_val))) # Currnet Position  
     ct_d = norm(np.cross(p2-p1, p1-p3))/norm(p2-p1) # Cross-track distance
     
@@ -475,26 +476,27 @@ def compute_reward(quad_state, quad_vel, collision_info):
 
     else:    
         # Calculate reward for cross-track error
-        perpendicular_reward = ct_d*2.0
+        perpendicular_reward = ct_d**2.0
         # print ('The perpendicular distance obtained is {} and the reward is {}'.format(ct_d,perpendicular_reward))
 
         # Get the goal distance:
         goal_dist = norm(p3-p2)
-        goal_reward = goal_dist*2.0 
+        goal_reward = goal_dist**2 
         # print ('The goal distance obtained is {} and the reward is {}'.format(goal_dist,goal_reward))
 
         if goal_dist < 10 :
             reward  = 1000    
         else:
-            reward = 100 - perpendicular_reward - goal_dist
-            print ('reward : {} '.format(reward))
+            # reward = 100 - perpendicular_reward - goal_dist - math.fabs(yaw_rate)*2
+            reward = 100 - goal_dist - math.fabs(yaw_rate)*2
+            # print ('reward : {} '.format(reward))
     return reward
 
 
 
 def isDone(reward):
     done = 0
-    if  reward <=  -10 : #collide
+    if  reward <= -10 : #collide
         done = 1
         print ('The drone failed to reach the goal')
     if (reward  > 90):
@@ -572,6 +574,8 @@ V = 5   # Velocity of the Quad
 
 pi = 3.14
 
+quad_yaw_offset = 0
+
 #Training Loop
 for episode in range(n_episodes):
     print ('Starting Episode :', episode)
@@ -585,7 +589,7 @@ for episode in range(n_episodes):
     print ('Quad takeoff')
     
     client.moveToPosition(0, 0, -5, 5) # Move 5 meter above home
-    # client.rotateToYaw(90)
+    client.rotateToYaw(90)
     
 #    moveInHeading(client, 1, 45, -5, 5)
 #    moveInHeading(client, 1, -45, -5, 5)
@@ -597,6 +601,7 @@ for episode in range(n_episodes):
     r = []
     # Reset yaw angle
     yaw = 90;
+    quad_yaw_offset = 0;
 
     # Get the initial image from the camera
     responses = client.simGetImages([ImageRequest(1, AirSimImageType.DepthPerspective, True, False)])
@@ -652,7 +657,7 @@ for episode in range(n_episodes):
         collision_info = client.getCollisionInfo()
         
         # Compute rewawd
-        reward  = compute_reward(quad_pose, quad_vel, collision_info)
+        reward  = compute_reward(quad_pose, quad_vel, collision_info, quad_yaw_offset)
 
         # Check if the episode is done
         done = isDone(reward)
