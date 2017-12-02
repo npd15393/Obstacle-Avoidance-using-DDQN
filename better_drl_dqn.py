@@ -16,6 +16,7 @@ from PIL import Image
 import pprint
 import matplotlib.pyplot as plt
 from numpy.linalg import norm
+import logging
 
 class ReplayMemory(object):
     """
@@ -576,6 +577,9 @@ pi = 3.14
 
 quad_yaw_offset = 0
 
+log = open("Quad_log.txt", "w")
+log.write("Episode, Average_Reward, Episode_Length,\n")
+
 #Training Loop
 for episode in range(n_episodes):
     print ('Starting Episode :', episode)
@@ -615,7 +619,7 @@ for episode in range(n_episodes):
         # Testing space
         # client.moveToPosition(0, 0, -5, 5) # Move 5 meter above home
         # quad_pose = client.getPosition();
-        # print('QUAD_POS X: {0} Y: {1} Z: {2}'.format(quad_pose.x_val, quad_pose.y_val, quad_pose.z_val))
+        # print('QUAD_POS X: {0} Y: {1} Z: {2}'.format(quad_pose.x_val, quad_pose.y_val, quad_pose.z_val))        
         
         action = agent.act(current_state)
 
@@ -715,6 +719,17 @@ for episode in range(n_episodes):
         plt.title('Average Reward vs Episodes')
         plt.savefig('savedRewards/AvgRewardVsEp')
         plt.close()
+
+        # Save episode_length vs episodes
+        plt.figure()
+        plt.plot(episode_length)
+        plt.ylabel('Episode Length')
+        plt.xlabel('Episodes')
+        plt.title('Episode Length vs Episodes')
+        plt.savefig('savedRewards/EpLengthVsEp')
+        plt.close()
+
+    log.write("{0}, {1}, {2},\n".format(episode, sum(r)/len(r), len(r)))
 
 print('******************************END***********************************')
 print ('The Training has been completed for {} episodes with model saved '.format(n_episodes))
