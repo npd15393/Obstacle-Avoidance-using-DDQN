@@ -13,10 +13,10 @@ This code is an add on to the Airsim source code.
 * Clone <a href="https://github.com/Microsoft/AirSim">Airsim</a> repo
 * Build from source by following the instructions in 'How to Get It' section.
 * Now clone(or download and copy) this repo in the (your cloned path)/PythonClient/
-* Copy merge <a href="https://github.com/Microsoft/AirSim">this arena</a> to (your cloned path)/Unreal
+* Copy merge <a href="https://www.dropbox.com/s/modl4yevcjcnzzf/Unreal.rar?dl=0">this arena</a> to (your cloned path)/Unreal
 
 ## How to train
-* Start Blocks as indicated <a href="https://www.dropbox.com/s/modl4yevcjcnzzf/Unreal.rar?dl=0">here</a> repo
+* Start Blocks as indicated <a href="https://github.com/Microsoft/AirSim/blob/master/docs/unreal_blocks.md">here</a> repo
 * Run better_drl_dqn3.py
 
 [[Demo Video]](https://www.youtube.com/watch?v=WZe6jF1GAxk)
