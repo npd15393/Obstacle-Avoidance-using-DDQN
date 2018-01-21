@@ -19,4 +19,4 @@ This code is an add on to the Airsim source code.
 * Start Blocks as indicated <a href="https://github.com/Microsoft/AirSim/blob/master/docs/unreal_blocks.md">here</a> repo
 * Run better_drl_dqn3.py
 
-[![Test Run]](https://www.youtube.com/watch?v=WZe6jF1GAxk)
+[[Demo Video]](https://www.youtube.com/watch?v=WZe6jF1GAxk)
