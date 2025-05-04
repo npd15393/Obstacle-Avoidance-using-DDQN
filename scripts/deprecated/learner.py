@@ -8,7 +8,7 @@ import numpy as np
 import random as rand
 import itertools
 from collections import defaultdict
-from lib import plotting
+import plotting
 
 class Learner():
     def __init__(self,alpha=0.1,epsi=0.2,discount=1):
