@@ -1,17 +1,17 @@
-from AirSimClient import *
+import matplotlib.pyplot as plt
 import numpy as np
+from AirSimClient import *
 from cntk.core import Value
 from cntk.initializer import he_uniform
-from cntk.layers import Sequential, Convolution2D, Dense, default_options
+from cntk.layers import Convolution2D, Dense, Sequential, default_options
 from cntk.layers.typing import Signature, Tensor
-from cntk.learners import adam, learning_rate_schedule, momentum_schedule, UnitType
+from cntk.learners import UnitType, adam, learning_rate_schedule, momentum_schedule
 from cntk.logging import TensorBoardProgressWriter
-from cntk.ops import abs, element_select, less, relu, reduce_max, reduce_sum, square
+from cntk.ops import abs, element_select, less, reduce_max, reduce_sum, relu, square
 from cntk.ops.functions import CloneMethod, Function, load_model
 from cntk.train import Trainer
-from PIL import Image
-import matplotlib.pyplot as plt
 from numpy.linalg import norm
+from PIL import Image
 
 
 class ReplayMemory(object):
